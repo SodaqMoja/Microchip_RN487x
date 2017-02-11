@@ -24,6 +24,7 @@
     TERMS.
 */
 
+#include <Arduino.h>
 #include <RN487x_BLE.h>
 #include <EddystoneBeacon.h>
 
@@ -85,7 +86,7 @@ void setup()
 {
   while ((!debugSerial) && (millis() < SERIAL_TIMEOUT)) ;
 
-	debugSerial.begin(115200) ;
+  debugSerial.begin(115200) ;
 
   initLed() ;
   initTemperature() ;
