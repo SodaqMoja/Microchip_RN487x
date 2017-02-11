@@ -71,32 +71,50 @@ void iBeacon::begin(const char* uuid, uint16_t major, uint16_t minor, uint8_t tx
   //  - 0x02 = iBeacon Type
   //  - 0x15 = iBeacon Length
   const char* prefix = "4C000215" ;
-  uint8_t len = strlen(prefix) ;
-  char c1[4] ;
-  char c2[2] ;
+  size_t remaining_len = sizeof(data) - 1;      // Reserved one byte for NUL
+  char *ptr;
+  char buf[6] ;
 
   // Construct the iBeacon frame
-  memset(data, 0, strlen(data)) ;
+
+  // Clear the buffer
+  memset(data, 0, sizeof(data)) ;
+  ptr = data;
+
   // Add Prefix
-  memcpy(data, prefix, len) ;
+  strncpy(ptr, prefix, remaining_len);
+  remaining_len -= strlen(ptr);
+  ptr += strlen(ptr);
+
   // Add UUID
-  memcpy(&data[len], uuid, strlen(uuid)) ;
-  len += strlen(uuid) ;
+  strncpy(ptr, uuid, remaining_len);
+  remaining_len -= strlen(ptr);
+  ptr += strlen(ptr);
+
   // Add Major
-  sprintf(c1, "%04X", major) ;
-  memcpy(&data[len], c1, strlen(c1)) ;
-  len += strlen(c1) ;
+  sprintf(buf, "%04X", major) ;                 // !! Make sure buf[] is big enough
+  strncpy(ptr, buf, remaining_len);
+  remaining_len -= strlen(ptr);
+  ptr += strlen(ptr);
+
   // Add Minor
-  sprintf(c1, "%04X", minor) ;
-  memcpy(&data[len], c1, strlen(c1)) ;
-  len += strlen(c1) ;
+  sprintf(buf, "%04X", minor) ;                 // !! Make sure buf[] is big enough
+  strncpy(ptr, buf, remaining_len);
+  remaining_len -= strlen(ptr);
+  ptr += strlen(ptr);
+
   // Add Tx Power Measured
-  sprintf(c2, "%02X", txPower) ;
-  memcpy(&data[len], c2, strlen(c2)) ;
+  sprintf(buf, "%02X", txPower) ;
+  strncpy(ptr, buf, remaining_len);
+  remaining_len -= strlen(ptr);
+  ptr += strlen(ptr);
+
+#if 0
+  if (strlen(data) > (sizeof(data) - 1)) {
+    // What to do when data[] is too small?
+  }
+#endif
 
   // Start to transmit the beacon packet
   rn487xBle.startImmediateBeacon(AD_TYPE_MANUFACTURE_SPECIFIC_DATA, data) ;
-
 }
-
-
