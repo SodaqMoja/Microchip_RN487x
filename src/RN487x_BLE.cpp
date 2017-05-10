@@ -28,6 +28,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#if defined(ARDUINO_SODAQ_ONE)
+  #define BLUETOOTH_WAKE  (26u) // A6/D6
+  #define BT_RESET  (24u) //A2/D2
+#endif
+
 // Bluetooth Reset signal is supported from the BSP version SODAQ_SAMD_BOARD_1.6.10
 // Redefine the pin in case of using prior version than v1.6.9
 #ifndef BT_RESET
