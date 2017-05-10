@@ -28,12 +28,19 @@
 #include <RN487x_BLE.h>
 
 #define debugSerial SerialUSB
+#if defined(ARDUINO_SODAQ_EXPLORER)
 #define bleSerial Serial1
+#else
+#define bleSerial Serial
+#endif
+
 #define SERIAL_TIMEOUT  10000
 
 void initLed()
 {
-  pinMode(LED_BUILTIN, OUTPUT) ;
+  #if defined(ARDUINO_SODAQ_EXPLORER)
+    pinMode(LED_BUILTIN, OUTPUT) ;
+  #endif
   pinMode(LED_RED, OUTPUT) ;
   pinMode(LED_GREEN, OUTPUT) ;
   pinMode(LED_BLUE, OUTPUT) ;  
@@ -42,12 +49,16 @@ void initLed()
 
 void turnBlueLedOn()
 {
-  digitalWrite(LED_BUILTIN, HIGH) ;
+  #if defined(ARDUINO_SODAQ_EXPLORER)
+    digitalWrite(LED_BUILTIN, HIGH) ;
+  #endif
 }
 
 void turnBlueLedOff()
 {
-  digitalWrite(LED_BUILTIN, LOW) ;
+  #if defined(ARDUINO_SODAQ_EXPLORER)
+    digitalWrite(LED_BUILTIN, LOW) ;
+  #endif
 }
 
 #define COMMON_ANODE  // LED driving
