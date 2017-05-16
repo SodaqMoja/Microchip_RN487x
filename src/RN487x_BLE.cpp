@@ -1575,5 +1575,3 @@ bool Rn487xBle::expectResponse(const char* expectedResponse, uint16_t timeout)
   }
   return false ;
 }
-
-

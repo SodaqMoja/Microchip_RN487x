@@ -223,5 +223,3 @@ void EddystoneBeacon::beginURI(uint8_t txPower, const char* uri)
   // Add the rest of the frame
   rn487xBle.startImmediateBeacon(AD_TYPE_SERVICE_DATA, data) ;
 }
-
-

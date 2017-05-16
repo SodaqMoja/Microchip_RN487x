@@ -138,4 +138,3 @@ void loop()
     debugSerial.print((char)bleSerial.read()) ;
   }
 }
-
