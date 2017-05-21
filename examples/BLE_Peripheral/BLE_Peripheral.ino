@@ -26,12 +26,28 @@
 
 #include <Arduino.h>
 #include <RN487x_BLE.h>
+#include <Sodaq_LIS3DE.h>
 
 #define debugSerial SerialUSB
+
+#if defined(ARDUINO_SODAQ_EXPLORER)
 #define bleSerial Serial1
+#elif defined(ARDUINO_SODAQ_ONE) || defined(ARDUINO_SODAQ_ONE_BETA)
+#define bleSerial Serial
+#endif
+
 #define SERIAL_TIMEOUT  10000
 
-const char* myDeviceName = "Proto01" ;  // Custom Device name
+#define ADC_AREF 3.3f
+#define BATVOLT_R1 4.7f
+#define BATVOLT_R2 10.0f
+
+// Temperature offset for Sodaq One
+#define TEMP_OFFSET 20
+
+Sodaq_LIS3DE accelerometer;
+
+const char* myDeviceName = "My SODAQ BOARD" ;  // Custom Device name
 const char* myPrivateServiceUUID = "AD11CF40063F11E5BE3E0002A5D5C51B" ; // Custom private service UUID
 const char* temperatureCharacteristicUUID = "BF3FBD80063F11E59E690002A5D5C501" ;  // custom characteristic GATT
 const uint8_t temperatureCharacteristicLen = 2 ;  // data length (in bytes)
@@ -47,7 +63,9 @@ const char* ledPayload ;
 
 void initLed()
 {
+  #if defined(ARDUINO_SODAQ_EXPLORER)
   pinMode(LED_BUILTIN, OUTPUT) ;
+  #endif
   pinMode(LED_RED, OUTPUT) ;
   pinMode(LED_GREEN, OUTPUT) ;
   pinMode(LED_BLUE, OUTPUT) ;  
@@ -56,12 +74,16 @@ void initLed()
 
 void turnBlueLedOn()
 {
+  #if defined(ARDUINO_SODAQ_EXPLORER)
   digitalWrite(LED_BUILTIN, HIGH) ;
+  #endif
 }
 
 void turnBlueLedOff()
 {
+  #if defined(ARDUINO_SODAQ_EXPLORER)
   digitalWrite(LED_BUILTIN, LOW) ;
+  #endif
 }
 
 #define COMMON_ANODE  // LED driving
@@ -78,18 +100,60 @@ void setRgbColor(uint8_t red, uint8_t green, uint8_t blue)
   analogWrite(LED_BLUE, blue) ;
 }
 
+/**
+ * Init Temperature for ExpLoRer
+ */
 void initTemperature()
 {
+  #if defined(ARDUINO_SODAQ_EXPLORER)
   pinMode(TEMP_SENSOR, INPUT) ;
   //Set ADC resolution to 12 bits
-  analogReadResolution(12) ;  
+  analogReadResolution(12) ;
+  #endif
 }
 
+/**
+ * Read ExpLoRer temperature sensor
+ */
 float getTemperature()
 {
+  #if defined(ARDUINO_SODAQ_EXPLORER)
   float mVolts = (float)analogRead(TEMP_SENSOR) * 3300.0 / 1023.0 ;
+  #else
+  float mVolts = (float)getBoardTemperature() * 100 + 500;
+  #endif
   float temp = (mVolts - 500.0) / 100.0 ;
   return temp ;
+}
+
+/**
+ * Initializes the accelerometer or puts it in power-down mode
+ * for the purpose of reading its temperature delta.
+*/
+void setAccelerometerTempSensorActive(bool on)
+{
+    if (on) {
+        accelerometer.enable(false, Sodaq_LIS3DE::NormalLowPower100Hz, Sodaq_LIS3DE::XYZ, Sodaq_LIS3DE::Scale2g, true);
+        delay(300); // should be enough for initilization and 2 measurement periods
+    }
+    else {
+        accelerometer.disable();
+    }
+}
+
+/**
+ * Returns the board temperature.
+ * SDOAQ One
+*/
+float getBoardTemperature()
+{
+    setAccelerometerTempSensorActive(true);
+
+    float temp = TEMP_OFFSET + accelerometer.getTemperatureDelta();
+
+    setAccelerometerTempSensorActive(false);
+
+    return temp;
 }
 
 void setup()
@@ -97,8 +161,10 @@ void setup()
   while ((!debugSerial) && (millis() < SERIAL_TIMEOUT)) ;
   
   debugSerial.begin(115200) ;
+  Wire.begin();
 
   initLed() ;
+
   initTemperature() ;
 
   // Set the optional debug stream
@@ -228,4 +294,3 @@ void loop()
   // Delay inter connection polling
   delay(3000) ;
 }
-
