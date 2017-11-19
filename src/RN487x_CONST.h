@@ -154,7 +154,8 @@
 
 
 // ------------------- Response -----------------------
-#define PROMPT                "CMD>"  // exact prompt is "CMD> " (last char is a space)
+#define PROMPT                "CMD> "  // exact prompt is "CMD> " (last char is a space)
+#define PROMPT_CR             "CMD\r\n"
 #define PROMPT_END            "END"
 
 //-- Response

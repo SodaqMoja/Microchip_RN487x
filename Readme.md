@@ -2,6 +2,8 @@
 
 Arduino library for using the Microchip RN487x BLE module.
 
+Updated to work with chipKIT boards.
+
 ## Usage
 
 Quick example:
@@ -10,21 +12,23 @@ Quick example:
 #include "RN487x_BLE.h"
 
 #define bleSerial Serial1
+#define BT_RESET             7
+#define BLUETOOTH_WAKE      12
 
 void setup()
 {
-	rn487xBle.hwInit() ;
-	bleSerial.begin(rn487xBle.getDefaultBaudRate()) ;
-	rn487xBle.initBleStream(&bleSerial) ;
-	if (rn487xBle.swInit())
-	{
-		rn487xBle.enterCommandMode() ;
-		rn487xBle.stopAdvertising() ;
-		rn487xBle.setAdvPower(3) ;
-		rn487xBle.setSerializedName("Microchip") ;
-		rn487xBle.clearAllServices() ;
-		rn487xBle.reboot() ;
-	}
+  rn487xBle.hwInit(BT_RESET, BLUETOOTH_WAKE);
+  bleSerial.begin(rn487xBle.getDefaultBaudRate());
+  rn487xBle.initBleStream(&bleSerial);
+  if (rn487xBle.swInit())
+  {
+    rn487xBle.enterCommandMode();
+    rn487xBle.stopAdvertising();
+    rn487xBle.setAdvPower(3);
+    rn487xBle.setSerializedName("Microchip");
+    rn487xBle.clearAllServices();
+    rn487xBle.reboot();
+  }
 }
 
 void loop()
@@ -40,6 +44,15 @@ void loop()
 ## History
 
 v1.0.0 Initial Release
+
+v1.1.0 Release
+* enterCommandMode() now properly handles situation where module has prompt turned on or off
+* Library now keeps track of if it is in command mode or not
+* Added function setOperationMode()
+* Added startCustomAdvertising() function
+* Added support for PIC32 (chipKIT)
+* Moved reset and wake pin definitions into hwInit() so that different boards can be supported without editing library
+
 
 ## License
 
