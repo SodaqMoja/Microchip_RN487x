@@ -1,4 +1,4 @@
-# Microchip_RN487x
+# RN487x
 
 Arduino library for using the Microchip RN487x BLE module.
 
