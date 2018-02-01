@@ -53,6 +53,8 @@ v1.1.0 Release
 * Added support for PIC32 (chipKIT)
 * Moved reset and wake pin definitions into hwInit() so that different boards can be supported without editing library
 
+v1.2.0 Release
+* Examples updated to work properly with chipKIT boards (like Fubarino Mini and RGB Station)
 
 ## License
 

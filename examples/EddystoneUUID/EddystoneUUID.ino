@@ -1,6 +1,7 @@
-// EddystoneUUID.ino
-// Author: M16946
-// Date: 2017/01/13
+/* EddystoneUUID
+ * Based on work by M16946 (2017/01/13) for Microchip. 
+ * Modified by Brian Schmalz of Schmalz Haus LLC (brian@schmalzhaus.com) also for Microchip, Dec 2017
+ */
 
 /*
     (c) 2016 Microchip Technology Inc. and its subsidiaries. You may use this
@@ -28,63 +29,19 @@
 #include <RN487x_BLE.h>
 #include <EddystoneBeacon.h>
 
-#define debugSerial SerialUSB
-#if defined(ARDUINO_SODAQ_EXPLORER)
+#define debugSerial Serial
 #define bleSerial Serial1
-#else 
-#define bleSerial Serial
-#endif
+
 #define SERIAL_TIMEOUT  10000
 
 const char* myEddystoneUUID = "AD11CF40063F11E5BE3E0002A5D5C51B" ;
 const uint8_t myTxPower = 0xC5 ;
-
-void initLed()
-{
-  #if defined(ARDUINO_SODAQ_EXPLORER)
-    pinMode(LED_BUILTIN, OUTPUT) ;
-  #endif
-  pinMode(LED_RED, OUTPUT) ;
-  pinMode(LED_GREEN, OUTPUT) ;
-  pinMode(LED_BLUE, OUTPUT) ;  
-  pinMode(BUTTON, INPUT_PULLUP) ;
-}
-
-void turnBlueLedOn()
-{
-  #if defined(ARDUINO_SODAQ_EXPLORER)
-    digitalWrite(LED_BUILTIN, HIGH) ;
-  #endif
-}
-
-void turnBlueLedOff()
-{
-  #if defined(ARDUINO_SODAQ_EXPLORER)
-    digitalWrite(LED_BUILTIN, LOW) ;
-  #endif
-}
-
-#define COMMON_ANODE  // LED driving
-void setRgbColor(uint8_t red, uint8_t green, uint8_t blue)
-{
-#ifdef COMMON_ANODE
-  red = 255 - red ;
-  green = 255 - green ;
-  blue = 255 - blue ;
-#endif
-
-  analogWrite(LED_RED, red) ;
-  analogWrite(LED_GREEN, green) ;
-  analogWrite(LED_BLUE, blue) ;
-}
 
 void setup()
 {
   while ((!debugSerial) && (millis() < SERIAL_TIMEOUT)) ;
 
   debugSerial.begin(115200) ;
-
-  initLed() ;
 
   // Set the optional debug stream
   rn487xBle.setDiag(debugSerial) ;
@@ -97,12 +54,10 @@ void setup()
   // Finalize the init. process
   if (rn487xBle.swInit())
   {
-    setRgbColor(0, 255, 0) ;
     debugSerial.println("Init. procedure done!") ;
   }
   else
   {
-    setRgbColor(255, 0, 0) ;
     debugSerial.println("Init. procedure failed!") ;
     while(1) ;
   }

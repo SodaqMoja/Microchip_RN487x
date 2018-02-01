@@ -1,12 +1,20 @@
+/*  Sample sketch for illustrating BLE communications with a mobile device app. 
+ *  Designed to be used with a chipKIT Fubarino Mini board, but can be used with any Arduino
+ *  compatible board. Uses Microchip's RN4870 or RN4871 BLE module.
+ *  See https://chipkit.net/wiki/index.php?title=Basic_BLE for a tutorial explaining this sketch.
+ *  
+ *  Written by Brian Schmalz (brian@schmalzhaus.com) for Microchip, fall 2017.
+ *  Based on an example from https://github.com/SodaqMoja/Microchip_RN487x
+ *  This sketch is in the public domain
+ */
+
 #include <Arduino.h>
 #include <RN487x_BLE.h>
 #include <SoftPWMServo.h>
 
-#define debugSerial Serial
-#define bleSerial Serial1
-
-//#define BLUETOOTH_WAKE      12
-//#define BT_RESET             7
+/* These are the serial ports to use with a Fubarino Mini. Edit for your hardware setup. */
+#define debugSerial Serial      // Serial is Fubarini Mini's USB port
+#define bleSerial Serial1       // Serial1 is UART2 on pins 26 (TX) and 25 (RX) to BLE module
 
 /* Analog pin that temp sensor is connected to */
 #define TEMP_SENSOR A0
@@ -96,8 +104,8 @@ void setup()
 
   // Set the optional debug stream
   rn487xBle.setDiag(debugSerial);
-  // Initialize the BLE hardware with our sleep and wakeup pins
-  rn487xBle.hwInit(BT_RESET, BLUETOOTH_WAKE);
+  // Initialize the BLE hardware
+  rn487xBle.hwInit();
   // Open the communication pipe with the BLE module
   bleSerial.begin(rn487xBle.getDefaultBaudRate());
   // Assign the BLE serial port to the BLE library
@@ -257,4 +265,3 @@ void loop()
     delay(1000);
   }
 }
-
