@@ -1,11 +1,11 @@
 #######################################
-# Syntax Coloring Map For Microchip_RN487x
+# Syntax Coloring Map For RN487x
 #######################################
 
 #######################################
 # Datatypes (KEYWORD1)
 #######################################
-Microchip_RN487x	KEYWORD1
+RN487x	            KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)

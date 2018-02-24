@@ -28,22 +28,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if defined(ARDUINO_SODAQ_ONE)
-  #define BLUETOOTH_WAKE  (26u) // A6/D6
-  #define BT_RESET  (24u) //A2/D2
-#endif
-
-// Bluetooth Reset signal is supported from the BSP version SODAQ_SAMD_BOARD_1.6.10
-// Redefine the pin in case of using prior version than v1.6.9
-#ifndef BT_RESET
-  #define BT_RESET  (46u)
-#endif
-
 //#define DEBUG
 
 #ifdef DEBUG
-#define debugPrintLn(...) { if (this->diagStream) this->diagStream->println(__VA_ARGS__) ;  }
-#define debugPrint(...)   { if (this->diagStream) this->diagStream->print(__VA_ARGS__) ;    }
+#define debugPrintLn(...) { if (this->diagStream) this->diagStream->println(__VA_ARGS__);  }
+#define debugPrint(...)   { if (this->diagStream) this->diagStream->print(__VA_ARGS__);    }
 #warning "Debug mode is ON"
 #else
 #define debugPrintLn(...)
@@ -52,7 +41,7 @@
 
 // ---------------------------------------- Private section ----------------------------------------
 
-Rn487xBle rn487xBle ;
+Rn487xBle rn487xBle;
 
 // *********************************************************************************
 // Constructor
@@ -62,9 +51,9 @@ Rn487xBle rn487xBle ;
 // *********************************************************************************
 Rn487xBle::Rn487xBle(void)
 {
-  uartBufferLen = DEFAULT_INPUT_BUFFER_SIZE ;
-  uartBuffer = new char[uartBufferLen] ;
-  memset(uartBuffer, 0, uartBufferLen) ;
+  uartBufferLen = DEFAULT_INPUT_BUFFER_SIZE;
+  uartBuffer = new char[uartBufferLen];
+  memset(uartBuffer, 0, uartBufferLen);
 }
 
 // *********************************************************************************
@@ -77,8 +66,8 @@ Rn487xBle::~Rn487xBle()
 {
   if (uartBuffer != NULL)
   {
-    delete []uartBuffer ;
-    uartBuffer = NULL ;
+    delete []uartBuffer;
+    uartBuffer = NULL;
   }
 }
 
@@ -90,13 +79,41 @@ Rn487xBle::~Rn487xBle()
 // *********************************************************************************
 void Rn487xBle::hwInit(void)
 {
-  debugPrintLn("[hwInit]") ;
+  debugPrintLn("[hwInit]");
 
+  wakePin = -1;
+  resetPin = -1;
+  
   // Hardware reset
-  hwReset() ;
+  hwReset();
 
-  // Place the BLUETOOTH_WAKE pin in Low level
-  hwWakeUp() ;
+  // Place the 'wakePin' pin in Low level
+  hwWakeUp();
+}
+
+// *********************************************************************************
+// Hardware Init. procedure
+// *********************************************************************************
+// Input : uint8_t resetBLEPin - the digital I/O pin number connected to the BLE 
+//                               module's reset pin. Use -1 to disable
+//                               library's reset of BLE module
+// Input : uint8_t wakeBLEPin - the digital I/O pin number connected to the BLE
+//                               module's wake pin. Use -1 to disable library's 
+//                               use of wake pin
+// Output: void
+// *********************************************************************************
+void Rn487xBle::hwInit(uint8_t resetBLEPin, uint8_t wakeBLEPin)
+{
+  debugPrintLn("[hwInit]");
+
+  wakePin = wakeBLEPin;
+  resetPin = resetBLEPin;
+  
+  // Hardware reset
+  hwReset();
+
+  // Place the 'wakePin' pin in Low level
+  hwWakeUp();
 }
 
 // *********************************************************************************
@@ -107,15 +124,15 @@ void Rn487xBle::hwInit(void)
 // *********************************************************************************
 bool Rn487xBle::swInit(void)
 {
-  debugPrintLn("[swInit]") ;
+  debugPrintLn("[swInit]");
 
-  bool initOk = false ;
+  bool initOk = false;
 
   if (reboot())
   {
     // Set a known mode
-    setOperationMode(dataMode) ;
-    initOk = true ;
+    setOperationMode(dataMode);
+    initOk = true;
   }
   else
   {
@@ -124,12 +141,12 @@ bool Rn487xBle::swInit(void)
       if (reboot())
       {
         // Set a known mode
-        setOperationMode(dataMode) ;
-        initOk = true ;
+        setOperationMode(dataMode);
+        initOk = true;
       }
     }
   }
-  return initOk ;  
+  return initOk;
 }
 
 // *********************************************************************************
@@ -142,13 +159,20 @@ bool Rn487xBle::swInit(void)
 // *********************************************************************************
 void Rn487xBle::hwReset(void)
 {
-  debugPrintLn("[hwReset]") ;
+  if (resetPin != -1)
+  {
+    debugPrintLn("[hwReset]");
 
-  pinMode(BT_RESET, OUTPUT) ;
-  digitalWrite(BT_RESET, LOW) ;
-  delay(1) ;
-  digitalWrite(BT_RESET, HIGH) ;
-  delay(500) ;
+    pinMode(resetPin, OUTPUT);
+    digitalWrite(resetPin, LOW);
+    delay(1);
+    digitalWrite(resetPin, HIGH);
+    delay(500);
+  }
+  else
+  {
+    debugPrintLn("[hwReset skipped]");
+  }
 }
 
 // *********************************************************************************
@@ -161,11 +185,17 @@ void Rn487xBle::hwReset(void)
 // *********************************************************************************
 void Rn487xBle::hwWakeUp(void)
 {
-  debugPrintLn("[wakeUp]") ;
-    
-  pinMode(BLUETOOTH_WAKE, OUTPUT) ;
-  digitalWrite(BLUETOOTH_WAKE, LOW) ;
-  delay(5) ;  
+  if (wakePin != -1)
+  {
+    debugPrintLn("[wakeUp]");
+    pinMode(wakePin, OUTPUT);
+    digitalWrite(wakePin, LOW);
+    delay(5);
+  }
+  else
+  {
+    debugPrintLn("[wakeUp - skipped]");
+  }
 }
 
 // *********************************************************************************
@@ -178,11 +208,18 @@ void Rn487xBle::hwWakeUp(void)
 // *********************************************************************************
 void Rn487xBle::hwSleep(void)
 {
-  debugPrintLn("[sleep]") ;
+  if (wakePin != -1)
+  {
+    debugPrintLn("[sleep]");
 
-  pinMode(BLUETOOTH_WAKE, OUTPUT) ;
-  digitalWrite(BLUETOOTH_WAKE, HIGH) ;
-  delay(1) ;  
+    pinMode(wakePin, OUTPUT);
+    digitalWrite(wakePin, HIGH);
+    delay(1);
+  }
+  else
+  {
+    debugPrintLn("[sleep - skipped]");
+  }
 }
 
 
@@ -195,18 +232,49 @@ void Rn487xBle::hwSleep(void)
 // *********************************************************************************
 bool Rn487xBle::enterCommandMode(void)
 {
-  debugPrintLn("[enterCommandMode]") ;
+  debugPrintLn("[enterCommandMode]");
   
   // To enter Command mode from Data mode, type $$$ character sequence after 100 ms delay before the first $
-  delay(DELAY_BEFORE_CMD) ;
+  delay(DELAY_BEFORE_CMD);
 
-  this->bleSerial->print(ENTER_CMD) ;
-  if (expectResponse(PROMPT, DEFAULT_CMD_TIMEOUT))
+  memset(uartBuffer, 0, uartBufferLen); // clear the buffer
+  cleanInputBuffer();
+
+  this->bleSerial->print(ENTER_CMD);
+  
+  // This command will reply with either "CMD> " or "CMD<CR><LF>" depending on if
+  // the command prompt is turned on or off. This routine needs to detect which
+  // reply comes back, and set the commandPromptEnabled variable appropriately. This 
+  // reply takes less than 15ms to arrive. Each string is 5 bytes long.
+
+  debugPrintLn("[expectResponse] expecting CMD> or CMD");
+
+  unsigned long previous = millis();
+  
+  while ((millis() - previous < 15) && (this->bleSerial->available() < 5))
   {
-    setOperationMode(cmdMode) ;
-    return true ;
+    debugPrint(".");
   }
-  return false ;
+
+  this->bleSerial->readBytes(this->uartBuffer, this->bleSerial->available());
+
+  debugPrint("(");
+  debugPrint(this->uartBuffer);
+  debugPrint(")");
+
+  if (strstr(this->uartBuffer, PROMPT) != NULL)
+  {
+    debugPrintLn(" found a match ! - Command prompts are enabled.");
+    setOperationMode(cmdMode);
+    return true;
+  }
+  else if (strstr(this->uartBuffer, PROMPT_CR) != NULL)
+  {
+    debugPrintLn(" found a match ! - Command prompts are disabled.");
+    setOperationMode(cmdMode);
+    return true;
+  }
+  return false;
 }
 
 // *********************************************************************************
@@ -222,15 +290,15 @@ bool Rn487xBle::enterCommandMode(void)
 // *********************************************************************************
 bool Rn487xBle::enterDataMode(void)
 {
-  debugPrintLn("[enterDataMode]") ;
+  debugPrintLn("[enterDataMode]");
 
-  sendCommand(EXIT_CMD) ;
+  sendCommand(EXIT_CMD);
   if (expectResponse(PROMPT_END, DEFAULT_CMD_TIMEOUT))
   {
-    setOperationMode(dataMode) ;
-    return true ;
+    setOperationMode(dataMode);
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -247,18 +315,18 @@ bool Rn487xBle::enterDataMode(void)
 // *********************************************************************************
 void Rn487xBle::sendCommand(String stream)
 {
-  debugPrint("[sendCommand] " ) ;
-  debugPrintLn(stream) ;
+  debugPrint("[sendCommand] " );
+  debugPrintLn(stream);
   
-  this->flush() ;
-  cleanInputBuffer() ;
-  stream.concat(CR) ;
-  bleSerial->print(stream) ;
+  this->flush();
+  cleanInputBuffer();
+  stream.concat(CR);
+  bleSerial->print(stream);
 }
 
 void Rn487xBle::sendData(char *data, uint16_t dataLen)
 {
-  bleSerial->write(data, dataLen) ;
+  bleSerial->write(data, dataLen);
 }
 
 
@@ -272,21 +340,21 @@ bool Rn487xBle::retrieveBtAddress(void)
 {
   if (getSettings(0, 6))
   {    
-    btAddress[0] = uartBuffer[10] ;
-    btAddress[1] = uartBuffer[11] ;
-    btAddress[2] = uartBuffer[8] ;
-    btAddress[3] = uartBuffer[9] ;
-    btAddress[4] = uartBuffer[6] ;
-    btAddress[5] = uartBuffer[7] ;
-    btAddress[6] = uartBuffer[4] ;
-    btAddress[7] = uartBuffer[5] ;
-    btAddress[8] = uartBuffer[2] ;
-    btAddress[9] = uartBuffer[3] ;
-    btAddress[10]= uartBuffer[0] ;
-    btAddress[11]= uartBuffer[1] ;
-    return true ;
+    btAddress[0] = uartBuffer[10];
+    btAddress[1] = uartBuffer[11];
+    btAddress[2] = uartBuffer[8];
+    btAddress[3] = uartBuffer[9];
+    btAddress[4] = uartBuffer[6];
+    btAddress[5] = uartBuffer[7];
+    btAddress[6] = uartBuffer[4];
+    btAddress[7] = uartBuffer[5];
+    btAddress[8] = uartBuffer[2];
+    btAddress[9] = uartBuffer[3];
+    btAddress[10]= uartBuffer[0];
+    btAddress[11]= uartBuffer[1];
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -297,25 +365,25 @@ bool Rn487xBle::retrieveBtAddress(void)
 // *********************************************************************************
 bool Rn487xBle::getFirmwareVersion(void)
 {
-  debugPrint("[getFirmwareVersion]") ;
+  debugPrint("[getFirmwareVersion]");
 
-  uint16_t timeout = DEFAULT_CMD_TIMEOUT ;
-  unsigned long previous ;
+  uint16_t timeout = DEFAULT_CMD_TIMEOUT;
+  unsigned long previous;
 
-  sendCommand(DISPLAY_FW_VERSION) ;
-  previous = millis() ;
+  sendCommand(DISPLAY_FW_VERSION);
+  previous = millis();
   while (millis() - previous < timeout)
   {
-    debugPrint(".") ;
+    debugPrint(".");
     if (this->bleSerial->available() > 0)
     {
       if (readUntilCR() > 0)
       {
-        return true ;
+        return true;
       }
     }
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -326,8 +394,8 @@ bool Rn487xBle::getFirmwareVersion(void)
 // *********************************************************************************
 bool Rn487xBle::disableBeacon(void)
 {
-  debugPrintLn("[disableBeacon]") ;
-  return(setBeaconFeatures(BEACON_OFF)) ; 
+  debugPrintLn("[disableBeacon]");
+  return(setBeaconFeatures(BEACON_OFF));
 }
 
 // *********************************************************************************
@@ -338,8 +406,8 @@ bool Rn487xBle::disableBeacon(void)
 // *********************************************************************************
 bool Rn487xBle::enableBeacon(void)
 {
-  debugPrintLn("[enableBeacon]") ;
-  return(setBeaconFeatures(BEACON_ON)) ;
+  debugPrintLn("[enableBeacon]");
+  return(setBeaconFeatures(BEACON_ON));
 }
 
 // *********************************************************************************
@@ -350,8 +418,8 @@ bool Rn487xBle::enableBeacon(void)
 // *********************************************************************************
 bool Rn487xBle::enableBeaconAndAdv(void)
 {
-  debugPrintLn("[enableBeaconAndAdv]") ;
-  return(setBeaconFeatures(BEACON_ADV_ON)) ; 
+  debugPrintLn("[enableBeaconAndAdv]");
+  return(setBeaconFeatures(BEACON_ADV_ON));
 }
 
 // *********************************************************************************
@@ -364,14 +432,14 @@ bool Rn487xBle::enableBeaconAndAdv(void)
 // *********************************************************************************
 bool Rn487xBle::factoryReset(void)
 {
-  debugPrintLn("[factoryReset]") ;
+  debugPrintLn("[factoryReset]");
 
-  sendCommand(FACTORY_RESET) ;
+  sendCommand(FACTORY_RESET);
   if (expectResponse(FACTORY_RESET_RESP, RESET_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -384,23 +452,32 @@ bool Rn487xBle::factoryReset(void)
 // *********************************************************************************
 bool Rn487xBle::setAdvPower(uint8_t value)
 {
-  debugPrint("[setAdvPower] ") ; debugPrintLn(value) ;
+  debugPrint("[setAdvPower] ");
+  debugPrintLn(value);
 
-  if (value < MIN_POWER_OUTPUT) value = MIN_POWER_OUTPUT ;
-  if (value > MAX_POWER_OUTPUT) value = MAX_POWER_OUTPUT ;
+#if (MIN_POWER_OUTPUT != 0)
+  if (value < MIN_POWER_OUTPUT)
+  {
+    value = MIN_POWER_OUTPUT;
+  }
+#endif
+  if (value > MAX_POWER_OUTPUT)
+  {
+    value = MAX_POWER_OUTPUT;
+  }
 
-  uint8_t len = strlen(SET_ADV_POWER) ;
-  char c[1] ;
-  sprintf(c, "%d", value) ;
-  this->flush() ;
-  memcpy(uartBuffer, SET_ADV_POWER, len) ;
-  memcpy(&uartBuffer[len], c, 1) ;
-  sendCommand(uartBuffer) ;
+  uint8_t len = strlen(SET_ADV_POWER);
+  char c[1];
+  sprintf(c, "%d", value);
+  this->flush();
+  memcpy(uartBuffer, SET_ADV_POWER, len);
+  memcpy(&uartBuffer[len], c, 1);
+  sendCommand(uartBuffer);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -413,23 +490,32 @@ bool Rn487xBle::setAdvPower(uint8_t value)
 // *********************************************************************************
 bool Rn487xBle::setConPower(uint8_t value)
 {
-  debugPrint("[setConnPower] ") ; debugPrintLn(value) ;
+  debugPrint("[setConnPower] ");
+  debugPrintLn(value);
 
-  if (value < MIN_POWER_OUTPUT) value = MIN_POWER_OUTPUT ;
-  if (value > MAX_POWER_OUTPUT) value = MAX_POWER_OUTPUT ;
+#if (MIN_POWER_OUTPUT != 0)
+  if (value < MIN_POWER_OUTPUT) 
+  {
+    value = MIN_POWER_OUTPUT;
+  }
+#endif
+  if (value > MAX_POWER_OUTPUT)
+  {
+    value = MAX_POWER_OUTPUT;
+  }
    
-  uint8_t len = strlen(SET_CONN_POWER) ;
-  char c[1] ;
-  sprintf(c, "%d", value) ;
-  this->flush() ;
-  memcpy(uartBuffer, SET_CONN_POWER, len) ;
-  memcpy(&uartBuffer[len], c, 1) ;
-  sendCommand(uartBuffer) ;
+  uint8_t len = strlen(SET_CONN_POWER);
+  char c[1];
+  sprintf(c, "%d", value);
+  this->flush();
+  memcpy(uartBuffer, SET_CONN_POWER, len);
+  memcpy(&uartBuffer[len], c, 1);
+  sendCommand(uartBuffer);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -444,30 +530,30 @@ bool Rn487xBle::setConPower(uint8_t value)
 // *********************************************************************************
 bool Rn487xBle::setSerializedName(const char *newName)
 {
-  debugPrint("[setSerializedName] ") ;
-  debugPrintLn(newName) ;
+  debugPrint("[setSerializedName] ");
+  debugPrintLn(newName);
 
-  uint8_t len = strlen(SET_SERIALIZED_NAME) ;
-  uint8_t newLen = strlen(newName) ;
+  uint8_t len = strlen(SET_SERIALIZED_NAME);
+  uint8_t newLen = strlen(newName);
   if (newLen > MAX_SERIALIZED_NAME_LEN)
   {
-    newLen = MAX_SERIALIZED_NAME_LEN ;
-    debugPrintLn(" Too many characters") ;
+    newLen = MAX_SERIALIZED_NAME_LEN;
+    debugPrintLn(" Too many characters");
   }
 
   // Fill the device name without the last two bytes of the Bluetooth MAC address
-  memset(deviceName, 0, newLen) ;
-  memcpy(deviceName, newName, newLen) ;
+  memset(deviceName, 0, newLen);
+  memcpy(deviceName, newName, newLen);
   // Fill the buffer
-  this->flush() ;
-  memcpy(uartBuffer, SET_SERIALIZED_NAME, len) ; 
-  memcpy(&uartBuffer[len], newName, newLen) ;
-  sendCommand(uartBuffer) ;
+  this->flush();
+  memcpy(uartBuffer, SET_SERIALIZED_NAME, len);
+  memcpy(&uartBuffer[len], newName, newLen);
+  sendCommand(uartBuffer);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;  
+  return false;
 }
 
 // *********************************************************************************
@@ -479,30 +565,30 @@ bool Rn487xBle::setSerializedName(const char *newName)
 // *********************************************************************************
 bool Rn487xBle::setDevName(const char *newName)
 {
-  debugPrint("[setDeviceName] ") ;
-  debugPrintLn(newName) ;
+  debugPrint("[setDeviceName] ");
+  debugPrintLn(newName);
 
-  uint8_t len = strlen(SET_DEVICE_NAME) ;
-  uint8_t newLen = strlen(newName) ;
+  uint8_t len = strlen(SET_DEVICE_NAME);
+  uint8_t newLen = strlen(newName);
   if (newLen > MAX_DEVICE_NAME_LEN)
   {
-    newLen = MAX_DEVICE_NAME_LEN ;
-    debugPrintLn(" Too many characters") ;
+    newLen = MAX_DEVICE_NAME_LEN;
+    debugPrintLn(" Too many characters");
   }
 
   // Fill the device name
-  memset(deviceName, 0, newLen) ;
-  memcpy(deviceName, newName, newLen) ;
+  memset(deviceName, 0, newLen);
+  memcpy(deviceName, newName, newLen);
   // Fill the buffer
-  this->flush() ;
-  memcpy(uartBuffer, SET_DEVICE_NAME, len) ;
-  memcpy(&uartBuffer[len], newName, newLen) ;
-  sendCommand(uartBuffer) ;
+  this->flush();
+  memcpy(uartBuffer, SET_DEVICE_NAME, len);
+  memcpy(&uartBuffer[len], newName, newLen);
+  sendCommand(uartBuffer);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;  
+  return false;
 }
 
 // *********************************************************************************
@@ -518,14 +604,14 @@ bool Rn487xBle::setDevName(const char *newName)
 // *********************************************************************************
 bool Rn487xBle::enableLowPower(void)
 {
-  debugPrintLn("[enableLowPower]") ;
+  debugPrintLn("[enableLowPower]");
   
-  sendCommand(SET_LOW_POWER_ON) ;
+  sendCommand(SET_LOW_POWER_ON);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;  
+  return false;
 }
 
 // *********************************************************************************
@@ -537,14 +623,14 @@ bool Rn487xBle::enableLowPower(void)
 // *********************************************************************************
 bool Rn487xBle::disableLowPower(void)
 {
-  debugPrintLn("[disableLowPower]") ;
+  debugPrintLn("[disableLowPower]");
   
-  sendCommand(SET_LOW_POWER_OFF) ;
+  sendCommand(SET_LOW_POWER_OFF);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;   
+  return false;
 }
 
 // *********************************************************************************
@@ -556,22 +642,22 @@ bool Rn487xBle::disableLowPower(void)
 // *********************************************************************************
 bool Rn487xBle::setSupportedFeatures(uint16_t bitmap)
 {
-  debugPrint("[setSupportedFeatures]") ;
+  debugPrint("[setSupportedFeatures]");
 
-  uint8_t len = strlen(SET_SUPPORTED_FEATURES) ;
-  char c[4] ;
-  sprintf(c, "%04X", bitmap) ;
-  uint8_t newLen = strlen(c) ;
+  uint8_t len = strlen(SET_SUPPORTED_FEATURES);
+  char c[4];
+  sprintf(c, "%04X", bitmap);
+  uint8_t newLen = strlen(c);
 
-  this->flush() ;
-  memcpy(uartBuffer, SET_SUPPORTED_FEATURES, len) ; 
-  memcpy(&uartBuffer[len], c, newLen) ;
-  sendCommand(uartBuffer) ;
+  this->flush();
+  memcpy(uartBuffer, SET_SUPPORTED_FEATURES, len);
+  memcpy(&uartBuffer[len], c, newLen);
+  sendCommand(uartBuffer);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;  
+  return false;
 }
 
 // *********************************************************************************
@@ -586,23 +672,23 @@ bool Rn487xBle::setSupportedFeatures(uint16_t bitmap)
 // *********************************************************************************
 bool Rn487xBle::setDefaultServices(uint8_t bitmap)
 {
-  debugPrint("[setDefaultServices]") ;
+  debugPrint("[setDefaultServices]");
 
-  uint8_t len = strlen(SET_DEFAULT_SERVICES) ;
-  char c[2] ;
-  sprintf(c, "%02X", bitmap) ;
-  uint8_t newLen = strlen(c) ;
+  uint8_t len = strlen(SET_DEFAULT_SERVICES);
+  char c[2];
+  sprintf(c, "%02X", bitmap);
+  uint8_t newLen = strlen(c);
 
-  this->flush() ;
-  memcpy(uartBuffer, SET_DEFAULT_SERVICES, len) ; 
-  memcpy(&uartBuffer[len], c, newLen) ;
+  this->flush();
+  memcpy(uartBuffer, SET_DEFAULT_SERVICES, len);
+  memcpy(&uartBuffer[len], c, newLen);
   
-  sendCommand(uartBuffer) ;
+  sendCommand(uartBuffer);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;  
+  return false;
 }
 
 // *********************************************************************************
@@ -615,14 +701,14 @@ bool Rn487xBle::setDefaultServices(uint8_t bitmap)
 // *********************************************************************************
 bool Rn487xBle::clearAllServices(void)
 {
-  debugPrintLn("[cleanAllServices]") ;
+  debugPrintLn("[cleanAllServices]");
   
-  sendCommand(CLEAR_ALL_SERVICES) ;
+  sendCommand(CLEAR_ALL_SERVICES);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -634,14 +720,75 @@ bool Rn487xBle::clearAllServices(void)
 // *********************************************************************************
 bool Rn487xBle::startAdvertising(void)
 {
-  debugPrintLn("[startAdvertising]") ; 
+  debugPrintLn("[startAdvertising]");
   
-  sendCommand(START_DEFAULT_ADV) ;
+  sendCommand(START_DEFAULT_ADV);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
+}
+
+// *********************************************************************************
+// Start Custom Advertisement
+// *********************************************************************************
+// The advertisement is undirect connectable. (note, with no second parameter, this
+//   function will use the form of the START_CUSTOM_ADV command where no second 
+//   parameter is sent, thus making advertisements last forever)
+// Input : interval - the number of milliseconds between advertisements
+// Output: bool true if successfully executed
+// *********************************************************************************
+bool Rn487xBle::startCustomAdvertising(uint16_t interval)
+{
+  debugPrintLn("[startCustomAdvertising]");
+
+  uint8_t len = strlen(START_CUSTOM_ADV);
+  char parameters[5];
+  sprintf(parameters, "%04X", interval);
+  uint8_t newLen = strlen(parameters);
+
+  this->flush();
+  memcpy(uartBuffer, START_CUSTOM_ADV, len);
+  memcpy(&uartBuffer[len], parameters, newLen);
+  
+  sendCommand(uartBuffer);
+
+  if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
+  {
+    return true;
+  }
+  return false;
+}
+
+// *********************************************************************************
+// Start Custom Advertisement
+// *********************************************************************************
+// The advertisement is undirect connectable.
+// Input : interval - the number of milliseconds between advertisements
+// Input : totalAdTime - the number of 640ms ticks until advertisements stop
+// Output: bool true if successfully executed
+// *********************************************************************************
+bool Rn487xBle::startCustomAdvertising(uint16_t interval, uint16_t totalAdTime)
+{
+  debugPrintLn("[startCustomAdvertising]");
+
+  uint8_t len = strlen(START_CUSTOM_ADV);
+  char parameters[10];
+  sprintf(parameters, "%04X,%04X", interval, totalAdTime);
+  uint8_t newLen = strlen(parameters);
+
+  this->flush();
+  memcpy(uartBuffer, START_CUSTOM_ADV, len);
+  memcpy(&uartBuffer[len], parameters, newLen);
+  
+  sendCommand(uartBuffer);
+
+  if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
+  {
+    return true;
+  }
+  return false;
 }
 
 // *********************************************************************************
@@ -653,14 +800,14 @@ bool Rn487xBle::startAdvertising(void)
 // *********************************************************************************
 bool Rn487xBle::stopAdvertising(void)
 {
-  debugPrintLn("[stopAdvertising]") ; 
+  debugPrintLn("[stopAdvertising]");
   
-  sendCommand(STOP_ADV) ;
+  sendCommand(STOP_ADV);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -672,14 +819,14 @@ bool Rn487xBle::stopAdvertising(void)
 // *********************************************************************************
 bool Rn487xBle::clearImmediateAdvertising(void)
 {
-  debugPrintLn("[clearImmediateAdvertising]") ; 
+  debugPrintLn("[clearImmediateAdvertising]");
   
-  sendCommand(CLEAR_IMMEDIATE_ADV) ;
+  sendCommand(CLEAR_IMMEDIATE_ADV);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;  
+  return false;
 }
 
 // *********************************************************************************
@@ -692,14 +839,14 @@ bool Rn487xBle::clearImmediateAdvertising(void)
 // *********************************************************************************
 bool Rn487xBle::clearPermanentAdvertising(void)
 {
-  debugPrintLn("[clearPermanentAdvertising]") ; 
+  debugPrintLn("[clearPermanentAdvertising]");
   
-  sendCommand(CLEAR_PERMANENT_ADV) ;
+  sendCommand(CLEAR_PERMANENT_ADV);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;  
+  return false;
 }
 
 // *********************************************************************************
@@ -711,14 +858,14 @@ bool Rn487xBle::clearPermanentAdvertising(void)
 // *********************************************************************************
 bool Rn487xBle::clearImmediateBeacon(void)
 {
-  debugPrintLn("[clearImmediateBeacon]") ; 
+  debugPrintLn("[clearImmediateBeacon]");
   
-  sendCommand(CLEAR_IMMEDIATE_BEACON) ;
+  sendCommand(CLEAR_IMMEDIATE_BEACON);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;  
+  return false;
 }
 
 
@@ -732,14 +879,14 @@ bool Rn487xBle::clearImmediateBeacon(void)
 // *********************************************************************************
 bool Rn487xBle::clearPermanentBeacon(void)
 {
-  debugPrintLn("[clearPermanentBeacon]") ; 
+  debugPrintLn("[clearPermanentBeacon]");
   
-  sendCommand(CLEAR_PERMANENT_BEACON) ;
+  sendCommand(CLEAR_PERMANENT_BEACON);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;  
+  return false;
 }
 
 // *********************************************************************************
@@ -753,24 +900,24 @@ bool Rn487xBle::clearPermanentBeacon(void)
 // *********************************************************************************
 bool Rn487xBle::startImmediateAdvertising(uint8_t adType, const char adData[])
 {
-  debugPrintLn("[startImmediateAdvertising]") ;
+  debugPrintLn("[startImmediateAdvertising]");
 
-  uint8_t len = strlen(START_IMMEDIATE_ADV) ;
-  char c[2] ;
-  sprintf(c, "%02X", adType) ;
-  uint8_t newLen = strlen(c) ;
+  uint8_t len = strlen(START_IMMEDIATE_ADV);
+  char c[2];
+  sprintf(c, "%02X", adType);
+  uint8_t newLen = strlen(c);
 
-  this->flush() ;
-  memcpy(uartBuffer, START_IMMEDIATE_ADV, len) ; 
-  memcpy(&uartBuffer[len], c, newLen) ;
-  memcpy(&uartBuffer[len+newLen], ",", 1) ;
-  memcpy(&uartBuffer[len+newLen+1], adData, strlen(adData)) ;
-  sendCommand(uartBuffer) ;
+  this->flush();
+  memcpy(uartBuffer, START_IMMEDIATE_ADV, len);
+  memcpy(&uartBuffer[len], c, newLen);
+  memcpy(&uartBuffer[len+newLen], ",", 1);
+  memcpy(&uartBuffer[len+newLen+1], adData, strlen(adData));
+  sendCommand(uartBuffer);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -785,24 +932,24 @@ bool Rn487xBle::startImmediateAdvertising(uint8_t adType, const char adData[])
 // *********************************************************************************
 bool Rn487xBle::startPermanentAdvertising(uint8_t adType, const char adData[])
 {
-  debugPrintLn("[startPermanentAdvertising]") ;
+  debugPrintLn("[startPermanentAdvertising]");
 
-  uint8_t len = strlen(START_PERMANENT_ADV) ;
-  char c[2] ;
-  sprintf(c, "%02X", adType) ;
-  uint8_t newLen = strlen(c) ;
+  uint8_t len = strlen(START_PERMANENT_ADV);
+  char c[2];
+  sprintf(c, "%02X", adType);
+  uint8_t newLen = strlen(c);
 
-  this->flush() ;
-  memcpy(uartBuffer, START_PERMANENT_ADV, len) ; 
-  memcpy(&uartBuffer[len], c, newLen) ;
-  memcpy(&uartBuffer[len+newLen], ",", 1) ;
-  memcpy(&uartBuffer[len+newLen+1], adData, strlen(adData)) ;
-  sendCommand(uartBuffer) ;
+  this->flush();
+  memcpy(uartBuffer, START_PERMANENT_ADV, len);
+  memcpy(&uartBuffer[len], c, newLen);
+  memcpy(&uartBuffer[len+newLen], ",", 1);
+  memcpy(&uartBuffer[len+newLen+1], adData, strlen(adData));
+  sendCommand(uartBuffer);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -816,24 +963,24 @@ bool Rn487xBle::startPermanentAdvertising(uint8_t adType, const char adData[])
 // *********************************************************************************
 bool Rn487xBle::startImmediateBeacon(uint8_t adType, const char adData[])
 {
-  debugPrintLn("[startImmediateBeacon]") ;
+  debugPrintLn("[startImmediateBeacon]");
 
-  uint8_t len = strlen(START_IMMEDIATE_BEACON) ;
-  char c[2] ;
-  sprintf(c, "%02X", adType) ;
-  uint8_t newLen = strlen(c) ;
+  uint8_t len = strlen(START_IMMEDIATE_BEACON);
+  char c[2];
+  sprintf(c, "%02X", adType);
+  uint8_t newLen = strlen(c);
 
-  this->flush() ;
-  memcpy(uartBuffer, START_IMMEDIATE_BEACON, len) ; 
-  memcpy(&uartBuffer[len], c, newLen) ;
-  memcpy(&uartBuffer[len+newLen], ",", 1) ;
-  memcpy(&uartBuffer[len+newLen+1], adData, strlen(adData)) ;
-  sendCommand(uartBuffer) ;
+  this->flush();
+  memcpy(uartBuffer, START_IMMEDIATE_BEACON, len);
+  memcpy(&uartBuffer[len], c, newLen);
+  memcpy(&uartBuffer[len+newLen], ",", 1);
+  memcpy(&uartBuffer[len+newLen+1], adData, strlen(adData));
+  sendCommand(uartBuffer);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -848,24 +995,24 @@ bool Rn487xBle::startImmediateBeacon(uint8_t adType, const char adData[])
 // *********************************************************************************
 bool Rn487xBle::startPermanentBeacon(uint8_t adType, const char adData[])
 {
-  debugPrintLn("[startPermanentBeacon]") ;
+  debugPrintLn("[startPermanentBeacon]");
 
-  uint8_t len = strlen(START_PERMANENT_BEACON) ;
-  char c[2] ;
-  sprintf(c, "%02X", adType) ;
-  uint8_t newLen = strlen(c) ;
+  uint8_t len = strlen(START_PERMANENT_BEACON);
+  char c[2];
+  sprintf(c, "%02X", adType);
+  uint8_t newLen = strlen(c);
 
-  this->flush() ;
-  memcpy(uartBuffer, START_PERMANENT_BEACON, len) ; 
-  memcpy(&uartBuffer[len], c, newLen) ;
-  memcpy(&uartBuffer[len+newLen], ",", 1) ;
-  memcpy(&uartBuffer[len+newLen+1], adData, strlen(adData)) ;
-  sendCommand(uartBuffer) ;
+  this->flush();
+  memcpy(uartBuffer, START_PERMANENT_BEACON, len);
+  memcpy(&uartBuffer[len], c, newLen);
+  memcpy(&uartBuffer[len+newLen], ",", 1);
+  memcpy(&uartBuffer[len+newLen+1], adData, strlen(adData));
+  sendCommand(uartBuffer);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -880,14 +1027,14 @@ bool Rn487xBle::startPermanentBeacon(uint8_t adType, const char adData[])
 // *********************************************************************************
 bool Rn487xBle::startScanning(void)
 {
-  debugPrintLn("[startScanning]") ; 
+  debugPrintLn("[startScanning]");
   
-  sendCommand(START_DEFAULT_SCAN) ;
+  sendCommand(START_DEFAULT_SCAN);
   if (expectResponse(SCANNING_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -906,26 +1053,26 @@ bool Rn487xBle::startScanning(void)
 // *********************************************************************************
 bool Rn487xBle::startScanning(uint16_t scanInterval, uint16_t scanWindow)
 {
-  debugPrint("[startScanning2]") ; //debugPrint(" Interval = " + scanInterval) ; debugPrint(" Window = " + scanWindow) ;
+  debugPrint("[startScanning2]"); //debugPrint(" Interval = " + scanInterval) ; debugPrint(" Window = " + scanWindow) ;
 
-  uint8_t len = strlen(START_CUSTOM_SCAN) ;
-  char c1[4] ;
-  sprintf(c1, "%04X", scanInterval) ;
-  uint8_t newLen = strlen(c1) ;
-  char c2[4] ;
-  sprintf(c2, "%04X", scanWindow) ;
+  uint8_t len = strlen(START_CUSTOM_SCAN);
+  char c1[4];
+  sprintf(c1, "%04X", scanInterval);
+  uint8_t newLen = strlen(c1);
+  char c2[4];
+  sprintf(c2, "%04X", scanWindow);
   
-  this->flush() ;
-  memcpy(uartBuffer, START_CUSTOM_SCAN, len) ; 
-  memcpy(&uartBuffer[len], c1, newLen) ;
-  memcpy(&uartBuffer[len+newLen], ",", 1) ;
-  memcpy(&uartBuffer[len+newLen+1], c2, strlen(c2)) ;
-  sendCommand(uartBuffer) ;
+  this->flush();
+  memcpy(uartBuffer, START_CUSTOM_SCAN, len);
+  memcpy(&uartBuffer[len], c1, newLen);
+  memcpy(&uartBuffer[len+newLen], ",", 1);
+  memcpy(&uartBuffer[len+newLen+1], c2, strlen(c2));
+  sendCommand(uartBuffer);
   if (expectResponse(SCANNING_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -937,14 +1084,14 @@ bool Rn487xBle::startScanning(uint16_t scanInterval, uint16_t scanWindow)
 // *********************************************************************************
 bool Rn487xBle::stopScanning(void)
 {
-  debugPrintLn("[stopScanning]") ; 
+  debugPrintLn("[stopScanning]");
   
-  sendCommand(STOP_SCAN) ;
+  sendCommand(STOP_SCAN);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -965,47 +1112,47 @@ bool Rn487xBle::stopScanning(void)
 // *********************************************************************************
 bool Rn487xBle::addMacAddrWhiteList(bool addrType, const char *addr)
 {
-  debugPrint("[addMacAddrWhiteList] ") ;
+  debugPrint("[addMacAddrWhiteList] ");
 
-  uint8_t len = strlen(ADD_WHITE_LIST) ;
-  uint8_t addrLen = strlen(addr) ;
+  uint8_t len = strlen(ADD_WHITE_LIST);
+  uint8_t addrLen = strlen(addr);
   if (addrLen != MAC_ADDRESS_LEN)
   {
-    debugPrintLn("MAC Address is not valid !") ;
-    return false ;
+    debugPrintLn("MAC Address is not valid !");
+    return false;
   }
 
-  debugPrintLn(addrType) ;
+  debugPrintLn(addrType);
 
-  whiteListCnt ++ ;
+  whiteListCnt++;
   if (whiteListCnt >= MAX_WHITE_LIST_SIZE)
   {
-    whiteListCnt = MAX_WHITE_LIST_SIZE ;
-    debugPrintLn("White list is full, not possible to add new MAC address.") ; 
-    return false ;
+    whiteListCnt = MAX_WHITE_LIST_SIZE;
+    debugPrintLn("White list is full, not possible to add new MAC address.");
+    return false;
   }
 
   // Fill the buffer
-  this->flush() ;
-  memcpy(uartBuffer, ADD_WHITE_LIST, len) ;
+  this->flush();
+  memcpy(uartBuffer, ADD_WHITE_LIST, len);
   if (addrType)
   {
-    memcpy(&uartBuffer[len], PRIVATE_ADDRESS_TYPE, 1) ;
+    memcpy(&uartBuffer[len], PRIVATE_ADDRESS_TYPE, 1);
   }
   else
   {
-    memcpy(&uartBuffer[len], PUBLIC_ADDRESS_TYPE, 1) ;
+    memcpy(&uartBuffer[len], PUBLIC_ADDRESS_TYPE, 1);
   }
-  len += 1 ;
-  memcpy(&uartBuffer[len], ",", 1) ;
-  len += 1 ;
-  memcpy(&uartBuffer[len], addr, addrLen) ;
-  sendCommand(uartBuffer) ;
+  len += 1;
+  memcpy(&uartBuffer[len], ",", 1);
+  len += 1;
+  memcpy(&uartBuffer[len], addr, addrLen);
+  sendCommand(uartBuffer);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -1022,14 +1169,14 @@ bool Rn487xBle::addMacAddrWhiteList(bool addrType, const char *addr)
 // *********************************************************************************
 bool Rn487xBle::addBondedWhiteList(void)
 {
-  debugPrintLn("[addBondedWhiteList]") ; 
+  debugPrintLn("[addBondedWhiteList]");
   
-  sendCommand(ADD_BONDED_WHITE_LIST) ;
+  sendCommand(ADD_BONDED_WHITE_LIST);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -1041,16 +1188,16 @@ bool Rn487xBle::addBondedWhiteList(void)
 // *********************************************************************************
 bool Rn487xBle::clearWhiteList(void)
 {
-  debugPrintLn("[clearWhiteList]") ; 
+  debugPrintLn("[clearWhiteList]");
 
-  whiteListCnt = 0 ;
+  whiteListCnt = 0;
   
-  sendCommand(CLEAR_WHITE_LIST) ;
+  sendCommand(CLEAR_WHITE_LIST);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -1062,14 +1209,14 @@ bool Rn487xBle::clearWhiteList(void)
 // *********************************************************************************
 bool Rn487xBle::killConnection(void)
 {
-  debugPrintLn("[killConnection]") ; 
+  debugPrintLn("[killConnection]");
   
-  sendCommand(KILL_CONNECTION) ;
+  sendCommand(KILL_CONNECTION);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -1083,20 +1230,20 @@ bool Rn487xBle::killConnection(void)
 // *********************************************************************************
 bool Rn487xBle::getRSSI(void)
 {
-  debugPrint("[getRSSI]") ;
+  debugPrint("[getRSSI]");
 
-  uint16_t timeout = DEFAULT_CMD_TIMEOUT ;
-  unsigned long previous ;
-  sendCommand(GET_RSSI_LEVEL) ;
-  previous = millis() ;
+  uint16_t timeout = DEFAULT_CMD_TIMEOUT;
+  unsigned long previous;
+  sendCommand(GET_RSSI_LEVEL);
+  previous = millis();
   while (millis() - previous < timeout)
   {
-    debugPrint(".") ;
+    debugPrint(".");
     if (this->bleSerial->available() > 0)
     {
       if (readUntilCR() > 0)
       {
-        return true ;
+        return true;
       }
     }
   }
@@ -1113,15 +1260,15 @@ bool Rn487xBle::getRSSI(void)
 // *********************************************************************************
 bool Rn487xBle::reboot(void)
 {
-  debugPrintLn("[reboot]") ;
+  debugPrintLn("[reboot]");
   
-  sendCommand(REBOOT) ;
+  sendCommand(REBOOT);
   if (expectResponse(REBOOTING_RESP, RESET_CMD_TIMEOUT))
   {
-    delay(RESET_CMD_TIMEOUT) ; // delay needed
-    return true ;
+    delay(RESET_CMD_TIMEOUT); // delay needed
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -1137,37 +1284,37 @@ bool Rn487xBle::reboot(void)
 // *********************************************************************************
 bool Rn487xBle::setServiceUUID(const char *uuid)
 {
-  debugPrint("[serServiceUUID]") ;
-  debugPrintLn(uuid) ;
+  debugPrint("[serServiceUUID]");
+  debugPrintLn(uuid);
 
-  uint8_t len = strlen(DEFINE_SERVICE_UUID) ;
-  uint8_t newLen = strlen(uuid) ;
+  uint8_t len = strlen(DEFINE_SERVICE_UUID);
+  uint8_t newLen = strlen(uuid);
 
   if (newLen == 32)
   {
     // 128-bit => private service
-    debugPrintLn("128-bit length => private service") ;
+    debugPrintLn("128-bit length => private service");
   }
   else if (newLen == 4)
   {
     // 16-bit => public service
-    debugPrintLn("16-bit length => public service") ;
+    debugPrintLn("16-bit length => public service");
   }
   else
   {
-    debugPrintLn("UUID length is not correct") ;
-    return false ;
+    debugPrintLn("UUID length is not correct");
+    return false;
   }
 
-  this->flush() ;
-  memcpy(uartBuffer, DEFINE_SERVICE_UUID, len) ; 
-  memcpy(&uartBuffer[len], uuid, newLen) ;
-  sendCommand(uartBuffer) ;
+  this->flush();
+  memcpy(uartBuffer, DEFINE_SERVICE_UUID, len);
+  memcpy(&uartBuffer[len], uuid, newLen);
+  sendCommand(uartBuffer);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -1187,54 +1334,54 @@ bool Rn487xBle::setServiceUUID(const char *uuid)
 // *********************************************************************************
 bool Rn487xBle::setCharactUUID(const char *uuid, uint8_t property, uint8_t octetLen)
 {
-  debugPrint("[setCharactUUID]") ;
-  debugPrintLn(uuid) ;
+  debugPrint("[setCharactUUID]");
+  debugPrintLn(uuid);
 
   if (octetLen < 0x01)
   {
-    octetLen = 0x01 ;
-    debugPrintLn("Octet Length is out of range (0x01-0x14)") ;
+    octetLen = 0x01;
+    debugPrintLn("Octet Length is out of range (0x01-0x14)");
   }
   else if (octetLen > 0x14)
   {
-    octetLen = 0x14 ;
-    debugPrintLn("Octet Length is out of range (0x01-0x14)") ;
+    octetLen = 0x14;
+    debugPrintLn("Octet Length is out of range (0x01-0x14)");
   }
 
-  uint8_t len = strlen(DEFINE_CHARACT_UUID) ;
-  uint8_t newLen = strlen(uuid) ;
+  //uint8_t len = strlen(DEFINE_CHARACT_UUID);
+  uint8_t newLen = strlen(uuid);
 
   if (newLen == PRIVATE_SERVICE_LEN)
   {
-    debugPrintLn("128-bit length => private service") ;
+    debugPrintLn("128-bit length => private service");
   }
   else if (newLen == PUBLIC_SERVICE_LEN)
   {
     // 16-bit => public service
-    debugPrintLn("16-bit length => public service") ;
+    debugPrintLn("16-bit length => public service");
   }
   else
   {
-    debugPrintLn("UUID length is not correct") ;
-    return false ;
+    debugPrintLn("UUID length is not correct");
+    return false;
   }
 
-  String str = DEFINE_CHARACT_UUID ;
-  char c[2] ;
-  str.concat(uuid) ;
-  str.concat(',') ;
-  sprintf(c, "%02X", property) ;
-  str.concat(c) ;
-  str.concat(',') ;
-  sprintf(c, "%02X", octetLen) ;
-  str.concat(c) ;
+  String str = DEFINE_CHARACT_UUID;
+  char c[2];
+  str.concat(uuid);
+  str.concat(',');
+  sprintf(c, "%02X", property);
+  str.concat(c);
+  str.concat(',');
+  sprintf(c, "%02X", octetLen);
+  str.concat(c);
 
-  sendCommand(str) ;
+  sendCommand(str);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -1248,24 +1395,24 @@ bool Rn487xBle::setCharactUUID(const char *uuid, uint8_t property, uint8_t octet
 // *********************************************************************************
 bool Rn487xBle::writeLocalCharacteristic(uint16_t handle, const char value[])
 {
-  debugPrint("[writeLocalCharacteristic]") ;
+  debugPrint("[writeLocalCharacteristic]");
 
-  uint8_t len = strlen(WRITE_LOCAL_CHARACT) ;
-  char c[4] ;
-  sprintf(c, "%04X", handle) ;
-  uint8_t newLen = strlen(c) ;
+  uint8_t len = strlen(WRITE_LOCAL_CHARACT);
+  char c[4];
+  sprintf(c, "%04X", handle);
+  uint8_t newLen = strlen(c);
 
-  this->flush() ;
-  memcpy(uartBuffer, WRITE_LOCAL_CHARACT, len) ; 
-  memcpy(&uartBuffer[len], c, newLen) ;
-  memcpy(&uartBuffer[len+newLen], ",", 1) ;
-  memcpy(&uartBuffer[len+newLen+1], value, strlen(value)) ;
-  sendCommand(uartBuffer) ;
+  this->flush();
+  memcpy(uartBuffer, WRITE_LOCAL_CHARACT, len);
+  memcpy(&uartBuffer[len], c, newLen);
+  memcpy(&uartBuffer[len+newLen], ",", 1);
+  memcpy(&uartBuffer[len+newLen+1], value, strlen(value));
+  sendCommand(uartBuffer);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -1279,29 +1426,29 @@ bool Rn487xBle::writeLocalCharacteristic(uint16_t handle, const char value[])
 // *********************************************************************************
 bool Rn487xBle::readLocalCharacteristic(uint16_t handle)
 {
-  debugPrint("[readLocalCharacteristic]") ;
+  debugPrint("[readLocalCharacteristic]");
 
-  uint16_t timeout = DEFAULT_CMD_TIMEOUT ;
-  unsigned long previous ;
+  uint16_t timeout = DEFAULT_CMD_TIMEOUT;
+  unsigned long previous;
 
-  uint8_t len = strlen(READ_LOCAL_CHARACT) ;
-  char c[4] ;
-  sprintf(c, "%04X", handle) ;
-  uint8_t newLen = strlen(c) ;
+  uint8_t len = strlen(READ_LOCAL_CHARACT);
+  char c[4];
+  sprintf(c, "%04X", handle);
+  uint8_t newLen = strlen(c);
 
-  this->flush() ;
-  memcpy(uartBuffer, READ_LOCAL_CHARACT, len) ; 
-  memcpy(&uartBuffer[len], c, newLen) ;
-  sendCommand(uartBuffer) ;
-  previous = millis() ;
+  this->flush();
+  memcpy(uartBuffer, READ_LOCAL_CHARACT, len);
+  memcpy(&uartBuffer[len], c, newLen);
+  sendCommand(uartBuffer);
+  previous = millis();
   while (millis() - previous < timeout)
   {
-    debugPrint(".") ;
+    debugPrint(".");
     if (this->bleSerial->available() > 0)
     {
       if (readUntilCR() > 0)
       {
-        return true ;
+        return true;
       }
     }
   }
@@ -1324,17 +1471,17 @@ bool Rn487xBle::readLocalCharacteristic(uint16_t handle)
 // *********************************************************************************
 int Rn487xBle::getConnectionStatus(void)
 {
-  debugPrint("[getConnectionStatus]") ;
+  debugPrint("[getConnectionStatus]");
 
-  uint16_t timeout = DEFAULT_CMD_TIMEOUT ;
-  unsigned long previous ;
+  uint16_t timeout = DEFAULT_CMD_TIMEOUT;
+  unsigned long previous;
 
-  sendCommand(GET_CONNECTION_STATUS) ;
+  sendCommand(GET_CONNECTION_STATUS);
 
-  previous = millis() ;
+  previous = millis();
   while (millis() - previous < timeout)
   {
-    debugPrint(".") ;
+    debugPrint(".");
     if (this->bleSerial->available() > 0)
     {
       if (readUntilCR() > 0)
@@ -1343,15 +1490,15 @@ int Rn487xBle::getConnectionStatus(void)
         if (strstr(this->uartBuffer, NONE_RESP) != NULL)
         {
           // Not connected
-          return false ;
+          return false;
         }
         // Connected
-        return true ;
+        return true;
       }
     }
   }
-  debugPrint("[getConnectionStatus] Timeout without a response !") ;
-  return -1 ;
+  debugPrint("[getConnectionStatus] Timeout without a response !");
+  return -1;
 }
 
 // ---------------------------------------- Private section ----------------------------------------
@@ -1364,18 +1511,18 @@ int Rn487xBle::getConnectionStatus(void)
 // *********************************************************************************
 bool Rn487xBle::setBeaconFeatures(const char *value)
 {
-  debugPrintLn("[setBeaconFeatures]") ;
+  debugPrintLn("[setBeaconFeatures]");
 
-  uint8_t len = strlen(SET_BEACON_FEATURES) ;
-  this->flush() ;
-  memcpy(uartBuffer, SET_BEACON_FEATURES, len) ; 
-  memcpy(&uartBuffer[len], value, 1) ;
-  sendCommand(uartBuffer) ;
+  uint8_t len = strlen(SET_BEACON_FEATURES);
+  this->flush();
+  memcpy(uartBuffer, SET_BEACON_FEATURES, len);
+  memcpy(&uartBuffer[len], value, 1);
+  sendCommand(uartBuffer);
   if (expectResponse(AOK_RESP, DEFAULT_CMD_TIMEOUT))
   {
-    return true ;
+    return true;
   }
-  return false ; 
+  return false;
 }
 
 // *********************************************************************************
@@ -1387,40 +1534,43 @@ bool Rn487xBle::setBeaconFeatures(const char *value)
 // *********************************************************************************
 bool Rn487xBle::getSettings(uint16_t addr, uint8_t sizeToRead)
 {
-  debugPrintLn("[getSettings]") ;
+  debugPrintLn("[getSettings]");
 
-  if (sizeToRead > MAX_SETTINGS_LEN)  sizeToRead = MAX_SETTINGS_LEN ;
+  if (sizeToRead > MAX_SETTINGS_LEN)
+  {
+    sizeToRead = MAX_SETTINGS_LEN;
+  }
 
-  uint16_t timeout = DEFAULT_CMD_TIMEOUT ;
-  unsigned long previous ;
+  uint16_t timeout = DEFAULT_CMD_TIMEOUT;
+  unsigned long previous;
 
-  uint8_t len = strlen(GET_SETTINGS) ;
-  char c1[4] ;
-  sprintf(c1, "%04X", addr) ;
-  uint8_t newLen = strlen(c1) ;
-  char c2[2] ;
-  sprintf(c2, "%02X", sizeToRead) ;
-
-  this->flush() ;
-  memcpy(uartBuffer, GET_SETTINGS, len) ; 
-  memcpy(&uartBuffer[len], c1, newLen) ;
-  memcpy(&uartBuffer[len+newLen], ",", 1) ;
-  memcpy(&uartBuffer[len+newLen+1], c2, strlen(c2)) ;
-  sendCommand(uartBuffer) ;
+  uint8_t len = strlen(GET_SETTINGS);
+  char c1[4];
+  sprintf(c1, "%04X", addr);
+  uint8_t newLen = strlen(c1);
+  char c2[2];
+  sprintf(c2, "%02X", sizeToRead);
   
-  previous = millis() ;
+  this->flush();
+  memcpy(uartBuffer, GET_SETTINGS, len);
+  memcpy(&uartBuffer[len], c1, newLen);
+  memcpy(&uartBuffer[len+newLen], ",", 1);
+  memcpy(&uartBuffer[len+newLen+1], c2, strlen(c2));
+  sendCommand(uartBuffer);
+  
+  previous = millis();
   while (millis() - previous < timeout)
   {
-    debugPrint(".") ;
+    debugPrint(".");
     if (this->bleSerial->available() > 0)
     {
       if (readUntilCR() > 0)
       {
-        return true ;
+        return true;
       }
     }
   }
-  return false ;
+  return false;
 }
 
 // *********************************************************************************
@@ -1434,41 +1584,41 @@ bool Rn487xBle::getSettings(uint16_t addr, uint8_t sizeToRead)
 // *********************************************************************************
 bool Rn487xBle::setSettings(uint16_t addr, const char *data)
 {
-  debugPrintLn("[setSettings]") ;
+  debugPrintLn("[setSettings]");
 
-  uint8_t dataLen = strlen(data) ;
-  debugPrintLn(data) ;
-  debugPrint("Len = ") ;
-  debugPrintLn(dataLen) ;
+  uint8_t dataLen = strlen(data);
+  debugPrintLn(data);
+  debugPrint("Len = ");
+  debugPrintLn(dataLen);
   
-  uint16_t timeout = DEFAULT_CMD_TIMEOUT ;
-  unsigned long previous ;
+  uint16_t timeout = DEFAULT_CMD_TIMEOUT;
+  unsigned long previous;
 
-  uint8_t len = strlen(SET_SETTINGS) ;
-  char c1[4] ;
-  sprintf(c1, "%04X", addr) ;
-  uint8_t newLen = strlen(c1) ;
+  uint8_t len = strlen(SET_SETTINGS);
+  char c1[4];
+  sprintf(c1, "%04X", addr);
+  uint8_t newLen = strlen(c1);
 
-  this->flush() ;
-  memcpy(uartBuffer, SET_SETTINGS, len) ; 
-  memcpy(&uartBuffer[len], c1, newLen) ;
-  memcpy(&uartBuffer[len+newLen], ",", 1) ;
-  memcpy(&uartBuffer[len+newLen+1], data, dataLen) ;
-  sendCommand(uartBuffer) ;
+  this->flush();
+  memcpy(uartBuffer, SET_SETTINGS, len);
+  memcpy(&uartBuffer[len], c1, newLen);
+  memcpy(&uartBuffer[len+newLen], ",", 1);
+  memcpy(&uartBuffer[len+newLen+1], data, dataLen);
+  sendCommand(uartBuffer);
   
-  previous = millis() ;
+  previous = millis();
   while (millis() - previous < timeout)
   {
-    debugPrint(".") ;
+    debugPrint(".");
     if (this->bleSerial->available() > 0)
     {
       if (readUntilCR() > 0)
       {
-        return true ;
+        return true;
       }
     }
   }
-  return false ;  
+  return false;
 }
 
 // *********************************************************************************
@@ -1479,8 +1629,13 @@ bool Rn487xBle::setSettings(uint16_t addr, const char *data)
 // *********************************************************************************
 void Rn487xBle::flush(void)
 {
-  uartBufferLen = DEFAULT_INPUT_BUFFER_SIZE ;
-  memset(uartBuffer, 0, uartBufferLen) ; 
+  uartBufferLen = DEFAULT_INPUT_BUFFER_SIZE;
+  // FOR DEBUGGING, PRINT OUT ANYTHING THAT'S IN THE BUFFER
+//  this->diagStream->print(" * Flushing :");
+//  this->diagStream->print(uartBuffer);
+//  this->diagStream->println(":");
+  
+  memset(uartBuffer, 0, uartBufferLen);
 }
 
 // *********************************************************************************
@@ -1493,7 +1648,7 @@ void Rn487xBle::cleanInputBuffer(void)
 {
   while (bleSerial->available() > 0)
   {
-    bleSerial->read() ;
+    bleSerial->read();
   }
 }
 
@@ -1505,7 +1660,7 @@ void Rn487xBle::cleanInputBuffer(void)
 // *********************************************************************************
 void Rn487xBle::setOperationMode(operationMode_t newMode)
 {
-  operationMode = newMode ;
+  operationMode = newMode;
 }
 
 // *********************************************************************************
@@ -1516,7 +1671,7 @@ void Rn487xBle::setOperationMode(operationMode_t newMode)
 // *********************************************************************************
 operationMode_t Rn487xBle::getOperationMode(void)
 {
-  return(operationMode) ;
+  return(operationMode);
 }
 
 
@@ -1533,8 +1688,8 @@ operationMode_t Rn487xBle::getOperationMode(void)
 // *********************************************************************************
 uint16_t Rn487xBle::readUntilCR(char* buffer, uint16_t size, uint16_t start)
 {
-  int len = this->bleSerial->readBytesUntil(CR, buffer + start, size) ;
-  return len ;
+  int len = this->bleSerial->readBytesUntil(LF, buffer + start, size);
+  return len;
 }
 
 
@@ -1548,30 +1703,30 @@ uint16_t Rn487xBle::readUntilCR(char* buffer, uint16_t size, uint16_t start)
 // *********************************************************************************
 bool Rn487xBle::expectResponse(const char* expectedResponse, uint16_t timeout)
 {
-  debugPrint("[expectResponse] expecting ") ;
-  debugPrintLn(expectedResponse) ;
+  debugPrint("[expectResponse] expecting ");
+  debugPrintLn(expectedResponse);
 
-  unsigned long previous ;
+  unsigned long previous;
   
-  memset(uartBuffer, 0, uartBufferLen) ; // clear the buffer
-  cleanInputBuffer() ;
-  previous = millis() ;
+  memset(uartBuffer, 0, uartBufferLen); // clear the buffer
+  cleanInputBuffer();
+  previous = millis();
 
   while (millis() - previous < timeout)
   {
-    debugPrint(".") ;
+    debugPrint(".");
     if (readUntilCR() > 0)
     {
-      debugPrint("(") ;
-      debugPrint(this->uartBuffer) ;
-      debugPrint(")") ;
+      debugPrint("(");
+      debugPrint(this->uartBuffer);
+      debugPrint(")");
       if (strstr(this->uartBuffer, expectedResponse) != NULL)
       {
-        debugPrintLn(" found a match !") ;
-        return true ;
+        debugPrintLn(" found a match !");
+        return true;
       }
-      return false ;
+      return false;
     }
   }
-  return false ;
+  return false;
 }
