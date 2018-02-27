@@ -212,6 +212,7 @@ void setup()
   // Clear adv. packet
   rn487xBle.clearImmediateAdvertising() ;
   // Start adv.
+  rn487xBle.startImmediateAdvertising(AD_TYPE_FLAGS, "06");
   rn487xBle.startImmediateAdvertising(AD_TYPE_MANUFACTURE_SPECIFIC_DATA, "CD00FE14AD11CF40063F11E5BE3E0002A5D5C51B") ;
 
   debugSerial.println("Starter Kit as a Peripheral with private service") ;
