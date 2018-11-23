@@ -1,0 +1,19 @@
+{
+    "name": "RN487x",
+    "provides": "RN487x_BLE.h",
+    "license": "Readme.md",
+    "readme": "Readme.md",
+    "description": "Microchip RN487x BLE module",
+    "category": "Communications",
+    "subcategory": "Wireless",
+    "maintainer": "Brian Schmalz <brian@schmalzhaus.com>",
+    "version": "1.2.0",
+    "family": "pic32",
+    "core": "chipkit",
+    "install": {
+        "examples": "/",
+        "src": "/",
+        "keywords.txt": "/",
+        "library.properties": "/"
+    }
+}
