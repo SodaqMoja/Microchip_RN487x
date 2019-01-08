@@ -70,6 +70,7 @@ public:
   bool setDevName(const char *newName) ;
   bool enableLowPower(void) ;
   bool disableLowPower(void) ;
+  bool dormantMode(void) ;
   bool setSupportedFeatures(uint16_t bitmap) ;
   bool setDefaultServices(uint8_t bitmap) ;
   bool retrieveBtAddress(void) ;

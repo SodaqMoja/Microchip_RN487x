@@ -58,6 +58,7 @@
 #define MAX_DEVICE_NAME_LEN   20
 #define SET_LOW_POWER_ON      "SO,1"
 #define SET_LOW_POWER_OFF     "SO,0"
+#define SET_DORMANT_MODE      "O,0"
 #define SET_SETTINGS          "S:,"
 
 #define SET_SUPPORTED_FEATURES "SR,"

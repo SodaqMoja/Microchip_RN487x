@@ -548,6 +548,25 @@ bool Rn487xBle::disableLowPower(void)
 }
 
 // *********************************************************************************
+// Set the module to Dormant
+// *********************************************************************************
+// Immediately forces the device into lowest power mode possible.
+// Removing the device from Dormant mode requires power reset.
+// Input : void
+// Output: bool true if successfully executed
+// *********************************************************************************
+bool Rn487xBle::dormantMode(void)
+{
+  debugPrintLn("[dormantMode]") ;
+  
+  sendCommand(SET_DORMANT_MODE) ;
+  delay(10) ;
+  
+  // module does not send confirmation
+  return true ;
+}
+
+// *********************************************************************************
 // Sets the supported feature of the module
 // *********************************************************************************
 // After changing the features a reboot() is necessary to make the changes effective
