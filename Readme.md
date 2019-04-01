@@ -33,14 +33,6 @@ void loop()
 
 ```
 
-
-## Contributing
-
-
-## History
-
-v1.0.0 Initial Release
-
 ## License
 
 (c) 2016 Microchip Technology Inc. and its subsidiaries. You may use this
