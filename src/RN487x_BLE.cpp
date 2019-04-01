@@ -560,7 +560,9 @@ bool Rn487xBle::dormantMode(void)
   debugPrintLn("[dormantMode]") ;
   
   sendCommand(SET_DORMANT_MODE) ;
-  delay(10) ;
+  delay(200);
+  
+  digitalWrite(BLUETOOTH_WAKE, HIGH);
   
   // module does not send confirmation
   return true ;
